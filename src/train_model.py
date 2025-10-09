@@ -1,17 +1,13 @@
-# train.py
 import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.pipeline import Pipeline
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report
 import joblib
-
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 from indicnlp.normalize.indic_normalize import IndicNormalizerFactory
 from indicnlp.tokenize.indic_tokenize import trivial_tokenize
+import os
 
 # -----------------
-# Expanded Dictionaries
+# Dictionaries
 # -----------------
 marathi_dictionary = {
     "हाय": "नमस्कार",
@@ -32,20 +28,6 @@ marathi_dictionary = {
     "जेवण झालं का?": "आपले जेवण झाले आहे का?",
     "मस्त आहे": "छान आहे",
     "भारी आहे": "खूप छान आहे",
-    "आज हवामान छान आहे": "आजचे हवामान सुंदर आहे",
-    "गाडी लेट आली": "गाडी उशिरा आली आहे",
-    "मी झोपलो": "मी झोपलो आहे",
-    "मी पोहचलो": "मी पोहोचलो आहे",
-    "उद्या सुट्टी आहे का?": "उद्या सुट्टी आहे का?",
-    "काय म्हणतोस?": "आपण काय म्हणत आहात?",
-    "थांब जरा": "कृपया थांबा",
-    "पाऊस पडतोय": "पाऊस पडत आहे",
-    "खूप भूक लागलीय": "मला खूप भूक लागली आहे",
-    "गरमी आहे": "खूप उष्णता आहे",
-    "थंडी आहे": "खूप थंडी आहे",
-    "किती वाजले?": "सध्या किती वाजले आहेत?",
-    "कुठे भेटू?": "आपण कुठे भेटूया?",
-    "मला मदत कर": "कृपया मला मदत करा",
 }
 
 synonym_dict = {
@@ -99,26 +81,25 @@ def preprocess_sentence(sentence: str) -> str:
     return sentence
 
 # -----------------
-# Load dataset
+# Load vectorizer + dataset
 # -----------------
-df = pd.read_csv(r"C:/Users/admin/marathi_formalizer/data/marathi_formalization_dataset.csv")
-df["input_processed"] = df["informal"].astype(str).apply(preprocess_sentence)
-df["target_processed"] = df["formal"].astype(str).apply(preprocess_sentence)
+VECTOR_PATH = os.path.join(os.path.dirname(__file__), "..", "vectorizer.pkl")
+DATASET_PATH = os.path.join(os.path.dirname(__file__), "..", "processed_dataset.csv")
 
-# Train-test split
-X_train, X_test, y_train, y_test = train_test_split(
-    df["input_processed"], df["target_processed"], test_size=0.2, random_state=42
-)
+vectorizer = joblib.load(VECTOR_PATH)
+df = pd.read_csv(DATASET_PATH)
+
+informal_sentences = df["input_processed"].fillna("").tolist()
+formal_sentences = df["target_processed"].fillna("").tolist()
+informal_vectors = vectorizer.transform(informal_sentences)
 
 # -----------------
-# Vectorizer (TF-IDF with ngrams)
+# Retrieval function
 # -----------------
-vectorizer = TfidfVectorizer(analyzer="char_wb", ngram_range=(3,6), min_df=1)
-X_train_vec = vectorizer.fit_transform(X_train)
-X_test_vec = vectorizer.transform(X_test)
-
-# Save vectorizer and dataset for retrieval
-joblib.dump(vectorizer, "vectorizer.pkl")
-df.to_csv("processed_dataset.csv", index=False)
-
-print("✅ Training data processed and vectorizer saved.")
+def formalize_sentence(user_sentence: str) -> str:
+    """Given an informal Marathi sentence, return the most similar formal sentence."""
+    processed = preprocess_sentence(user_sentence)
+    user_vec = vectorizer.transform([processed])
+    similarities = cosine_similarity(user_vec, informal_vectors)
+    best_idx = similarities.argmax()
+    return formal_sentences[best_idx]
