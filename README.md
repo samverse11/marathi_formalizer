@@ -41,5 +41,14 @@ python src/inference.py
 - Cosine similarity
 
 ---
+## Preprocessing Steps
+
+- **Unicode Normalization:** Standardizes and cleans Marathi text for consistent processing.
+- **Tokenization:** Splits input into language-appropriate tokens for better handling.
+- **Custom Dictionary Mapping:** Replaces informal phrases with formal equivalents using curated lookup tables.
+- **Synonym Replacement:** Normalizes variants and synonyms to a consistent, formal representation.
+- **Punctuation Cleaning:** Removes or replaces special characters and punctuation for cleaner text analysis.
+
+---
 
 **Dataset and model files must be present as described in the repo.**
